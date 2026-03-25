@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+  
+  --color-background: #050505;
+  --color-foreground: #fafafa;
+  
+  --color-card: rgba(255, 255, 255, 0.03);
+  --color-card-border: rgba(255, 255, 255, 0.08);
+  --color-card-hover: rgba(255, 255, 255, 0.05);
+
+  --color-primary: #5c6bc0;
+  --color-primary-glow: rgba(92, 107, 192, 0.3);
+  
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@layer base {
+  :root {
+    --background: #050505;
+    --foreground: #fafafa;
+  }
+}
+
+body {
+  background: radial-gradient(circle at top, #111118 0%, #050505 100%);
+  background-attachment: fixed;
+  color: var(--color-foreground);
+  min-height: 100vh;
+  font-family: var(--font-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Utilities for Glassmorphism */
+@layer utilities {
+  .glass {
+    background: var(--color-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-card-border);
+  }
+  
+  .glass-hover:hover {
+    background: var(--color-card-hover);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .glow {
+    box-shadow: 0 0 20px 0px var(--color-primary-glow);
+  }
+  
+  .text-gradient {
+    background: linear-gradient(to right, #fafafa, #a1a1aa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .7; }
+}

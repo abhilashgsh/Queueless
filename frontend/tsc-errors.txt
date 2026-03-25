@@ -1,0 +1,2 @@
+src/components/ui/button.tsx(58,9): error TS2322: Type 'ReactNode | MotionValueNumber | MotionValueString' is not assignable to type 'ReactNode'.
+  Type 'MotionValueNumber' is not assignable to type 'ReactNode'.
