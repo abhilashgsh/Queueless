@@ -24,8 +24,13 @@ const ADDONS = [
   { id: "File cover + transparent sheets", price: 1.50 }, { id: "Complete project kit", price: 10.00 }
 ];
 
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
+
 export default function UploadPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+
   const [file, setFile] = useState<File | null>(null);
   const [copies, setCopies] = useState(1);
   const [color, setColor] = useState<"bw" | "color">("bw");
@@ -36,14 +41,22 @@ export default function UploadPage() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
 
   const handleSubmit = async () => {
+    if (!session?.user?.email) {
+      toast.error("You must be logged in to upload an order.");
+      router.push("/login");
+      return;
+    }
+
     setIsUploading(true);
     try {
-      // Connect to FastAPI Order creation
       const response = await fetch("http://127.0.0.1:8000/orders/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${(session as any).accessToken}` 
+        },
         body: JSON.stringify({
-          user_id: "user123", // Using demo user ID
+          user_id: session.user.email,
           file_path: file?.name || "document.pdf",
           copies: copies,
           print_type: color,
@@ -56,11 +69,11 @@ export default function UploadPage() {
         setOrderDetails(data);
         setShowSuccess(true);
       } else {
-        alert("Failed to submit order. Please check backend.");
+        toast.error("Failed to submit order. Please check backend.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error connecting to server.");
+      toast.error("Error connecting to server.");
     } finally {
       setIsUploading(false);
     }

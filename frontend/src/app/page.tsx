@@ -1,164 +1,129 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { ShopCard, ShopData } from "@/components/ShopCard";
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Clock, Search } from "lucide-react";
+import { signIn, useSession } from "next-auth/react";
+import { Loader2, Printer, User, Store } from "lucide-react";
+import { motion } from "framer-motion";
 
-export default function Home() {
+export default function RootLoginRedirectPage() {
   const router = useRouter();
-  const [trackId, setTrackId] = useState("");
-  const [shops, setShops] = useState<ShopData[]>([]);
-  const [activeOrders, setActiveOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
-    const fetchShops = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:8000/shops/", { cache: "no-store", next: { revalidate: 0 } });
-        if (response.ok) {
-          const data = await response.json();
-          const mappedShops = data.map((s: any) => ({
-            id: s.shop_id.toString(),
-            name: s.name,
-            location: "Campus",
-            status: s.status === 'active' ? (s.current_queue_length > 10 ? 'Busy' : 'Open') : 'Closed',
-            queueLength: s.current_queue_length,
-            waitTimeMins: s.current_queue_length * 2
-          }));
-          setShops(mappedShops);
-        }
-      } catch (e) {
-        console.error("Failed to fetch shops. Make sure backend is running.", e);
-      } finally {
-        setLoading(false);
+    if (status === "authenticated" && session?.user) {
+      const role = (session.user as any).role;
+      if (role === "admin") {
+        router.replace("/admin/dashboard");
+      } else if (role === "shopkeeper") {
+        router.replace("/shop/dashboard");
+      } else {
+        router.replace("/student/dashboard");
       }
-    };
-    
-    const fetchActiveOrders = async () => {
-      try {
-        const res = await fetch("http://127.0.0.1:8000/orders/user/user123", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          // Filter to only ongoing orders
-          setActiveOrders(data.filter((o: any) => ["queued", "printing", "ready"].includes(o.status)));
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
+    }
+  }, [session, status, router]);
 
-    fetchShops();
-    fetchActiveOrders();
-    const interval = setInterval(() => { fetchShops(); fetchActiveOrders(); }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    await signIn("google", { callbackUrl: "/" });
+  };
+
+  const handleDemoLogin = async (type: "admin" | "shopkeeper") => {
+    setDemoLoading(true);
+    await signIn("credentials", {
+      username: type === "admin" ? "admin@queueless.com" : "shopkeeper@queueless.com",
+      password: type === "admin" ? "admin123" : "shop123",
+      callbackUrl: "/"
+    });
+  };
+
+  // If we are evaluating the session or if we are already authenticated (meaning redirect relies on useEffect), show a loader
+  if (status === "loading" || status === "authenticated") {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-4 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <p className="text-sm text-gray-400 font-medium animate-pulse">Authenticating...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      
-      <main className="flex-1 container mx-auto px-4 py-12 max-w-6xl">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12 text-center md:text-left flex flex-col md:flex-row justify-between items-end gap-6"
-        >
-          <div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 hidden md:block">
-              Smart Queue <span className="text-gradient">Management</span>
-            </h1>
-            <p className="text-gray-400 md:text-lg max-w-2xl">
-              Upload your documents from anywhere and get automatically routed to the fastest available print shop on campus. Uninterrupted productivity.
-            </p>
-          </div>
-          
-          <div className="glass p-4 rounded-xl flex items-center gap-4 w-full md:w-auto mt-4 md:mt-0">
-            <div className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
-            </div>
-            <span className="text-sm font-medium">Live Activity Tracked</span>
-          </div>
-        </motion.div>
+    <div className="min-h-screen bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center p-4">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="mb-12 flex flex-col lg:flex-row gap-8">
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Clock className="text-primary" size={20} /> Your Active Orders
-            </h2>
-            {activeOrders.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeOrders.map(order => (
-                  <Link href={`/track?order_id=${order.order_id}`} key={order.order_id}>
-                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 hover:bg-primary/20 transition-colors flex justify-between items-center group cursor-pointer h-full">
-                      <div>
-                        <p className="font-medium text-white">Order #{order.order_id}</p>
-                        <p className="text-sm text-gray-400 capitalize">{order.status} • {shops.find((s) => s.id === order.shop_id.toString())?.name || `Shop ${order.shop_id}`} • Pos #{order.queue_number}</p>
-                      </div>
-                      <ArrowRight className="text-primary transform group-hover:translate-x-1 transition-transform" size={20} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center text-gray-400">
-                No active orders found. Upload a document to get started.
-              </div>
-            )}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-md relative z-10"
+      >
+        <div className="bg-white/[0.03] border border-white/10 p-8 rounded-3xl backdrop-blur-xl shadow-2xl shadow-black/50">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-6 shadow-lg shadow-blue-500/20 relative">
+              <Printer className="w-8 h-8 text-white absolute" />
+            </div>
+            <h1 className="text-4xl font-black text-white tracking-tight mb-2">Queueless</h1>
+            <p className="text-gray-400 text-sm">Smart Queue Management System</p>
           </div>
-          
-          <div className="lg:w-1/3">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Search className="text-primary" size={20} /> Track Any Order
-            </h2>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 h-[calc(100%-2.5rem)] flex flex-col justify-center">
-              <p className="text-sm text-gray-400 mb-4">Enter your order ID to check its real-time queue status and time to print.</p>
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="e.g. A1B2C3" 
-                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary/50 uppercase"
-                  value={trackId}
-                  onChange={(e) => setTrackId(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => { 
-                    if (e.key === 'Enter' && trackId) {
-                      let formattedId = trackId.trim();
-                      if (!formattedId.startsWith('ORD-')) formattedId = 'ORD-' + formattedId;
-                      router.push(`/track?order_id=${formattedId}`);
-                    }
-                  }}
-                />
-                <button 
-                  className="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                  onClick={() => {
-                    if (trackId) {
-                      let formattedId = trackId.trim();
-                      if (!formattedId.startsWith('ORD-')) formattedId = 'ORD-' + formattedId;
-                      router.push(`/track?order_id=${formattedId}`);
-                    }
-                  }}
+
+          <div className="space-y-4">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading || demoLoading}
+              className="w-full relative group overflow-hidden bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 disabled:opacity-50 text-white font-medium py-4 px-6 rounded-xl transition-all duration-300 flex items-center gap-4"
+            >
+              <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 group-hover:scale-110 transition-transform">
+                <User className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-white">Continue as Student</p>
+                <p className="text-xs text-gray-400">Upload & track documents</p>
+              </div>
+              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent group-hover:via-blue-400 transition-colors" />
+            </button>
+
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading || demoLoading}
+              className="w-full relative group overflow-hidden bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 disabled:opacity-50 text-white font-medium py-4 px-6 rounded-xl transition-all duration-300 flex items-center gap-4"
+            >
+              <div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 group-hover:scale-110 transition-transform">
+                <Store className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-white">Continue as Shopkeeper</p>
+                <p className="text-xs text-gray-400">Manage incoming print jobs</p>
+              </div>
+              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent group-hover:via-purple-400 transition-colors" />
+            </button>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <p className="text-xs text-center text-gray-500 mb-4 uppercase tracking-wider font-semibold">Demo Credentials</p>
+            <div className="flex gap-2 justify-center">
+               <button 
+                  onClick={() => handleDemoLogin("admin")}
+                  disabled={demoLoading || loading}
+                  className="text-xs text-gray-400 hover:text-white border border-white/10 hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  Track
-                </button>
-              </div>
+                  Login as Admin
+               </button>
+               <button 
+                  onClick={() => handleDemoLogin("shopkeeper")}
+                  disabled={demoLoading || loading}
+                  className="text-xs text-gray-400 hover:text-white border border-white/10 hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Login as Shopkeeper
+               </button>
             </div>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="text-center py-20 text-gray-500">Connecting to Live Servers...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {shops.map((shop, i) => (
-              <ShopCard key={shop.id} shop={shop} index={i} />
-            ))}
-          </div>
-        )}
-      </main>
+        </div>
+      </motion.div>
     </div>
   );
 }
